@@ -9,12 +9,13 @@ import type { Post } from "@/lib/types";
 export function Composer({ onCreate }: { onCreate: (p: Post) => Promise<void> }) {
   const { user } = useAuth();
   const [caption, setCaption] = useState("");
+  const [people, setPeople] = useState(""); // new field
   const [busy, setBusy] = useState(false);
 
   if (!user) return null;
 
   const handleCreate = async () => {
-    if (!caption.trim()) return;
+    if (!caption.trim() && !people.trim()) return;
     setBusy(true);
 
     const newPost: Post = {
@@ -34,10 +35,12 @@ export function Composer({ onCreate }: { onCreate: (p: Post) => Promise<void> })
       placeName: "",
       tags: [],
       imageUrl: undefined,
+      extra: { people: people.split(/\s+/).filter((p) => p.startsWith("#")) }, // store #people
     };
 
     await onCreate(newPost);
     setCaption("");
+    setPeople("");
     setBusy(false);
   };
 
@@ -49,7 +52,13 @@ export function Composer({ onCreate }: { onCreate: (p: Post) => Promise<void> })
         onChange={(e) => setCaption(e.target.value)}
         className="min-h-[80px]"
       />
-      <Button onClick={handleCreate} disabled={busy || !caption.trim()}>
+      <Textarea
+        placeholder="Add #people to join"
+        value={people}
+        onChange={(e) => setPeople(e.target.value)}
+        className="min-h-[40px]"
+      />
+      <Button onClick={handleCreate} disabled={busy || (!caption.trim() && !people.trim())}>
         {busy ? "Posting…" : "Post"}
       </Button>
     </Card>

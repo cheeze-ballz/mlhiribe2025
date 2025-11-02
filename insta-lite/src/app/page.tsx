@@ -58,22 +58,44 @@ function HeaderBar() {
 }
 
 /* ========================== Post Card ========================== */
-function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }) {
+function PostCard({
+  post,
+  onLike,
+  onDelete, // optional
+}: {
+  post: Post;
+  onLike: (id: string) => void;
+  onDelete?: (id: string) => void;
+}) {
   const hasPhoto = Boolean(post.imageUrl);
   const hasMap = Boolean(post.location);
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center gap-3 py-3">
+        <CardHeader className="flex items-center gap-3 py-3">
           <Avatar className="h-9 w-9">
             <AvatarImage src={post.user.avatar} alt={post.user.name} />
             <AvatarFallback>{post.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="leading-tight">
+
+          <div className="leading-tight flex-1">
             <div className="font-semibold">{post.user.name}</div>
-            <div className="text-xs text-muted-foreground">{post.user.handle} · {timeAgo(post.createdAt)}</div>
+            <div className="text-xs text-muted-foreground">
+              {post.user.handle} · {timeAgo(post.createdAt)}
+            </div>
           </div>
+
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(post.id)}
+              title="Delete Post"
+            >
+              Delete
+            </Button>
+          )}
         </CardHeader>
 
         <CardContent className="p-0">
@@ -81,23 +103,35 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
             <div className={hasPhoto ? "border-b" : ""}>
               <MapPreview position={post.location!} height={180} zoom={15} />
               {post.placeName && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">📍 {post.placeName}</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  📍 {post.placeName}
+                </div>
               )}
             </div>
           )}
           {hasPhoto && (
-            <img src={post.imageUrl!} alt={post.caption} className="w-full aspect-video object-cover" />
+            <img
+              src={post.imageUrl!}
+              alt={post.caption}
+              className="w-full aspect-video object-cover"
+            />
           )}
         </CardContent>
 
         <CardFooter className="flex flex-col items-stretch gap-3">
           <div className="flex items-center gap-3 pt-2">
-            <Button size="icon" variant={post.liked ? "default" : "secondary"} onClick={() => onLike(post.id)}>
+            <Button
+              size="icon"
+              variant={post.liked ? "default" : "secondary"}
+              onClick={() => onLike(post.id)}
+            >
               <Heart className={`h-5 w-5 ${post.liked ? "fill-current" : ""}`} />
             </Button>
+
             <Button size="icon" variant="secondary">
               <MessageCircle className="h-5 w-5" />
             </Button>
+
             <div className="ml-1 text-sm text-muted-foreground">
               <span className="font-medium">{post.likes}</span> likes · {post.comments} comments
             </div>
@@ -111,7 +145,9 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
           {post.tags && post.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {post.tags.map((t) => (
-                <Badge key={t} variant="outline">{t}</Badge>
+                <Badge key={t} variant="outline">
+                  {t}
+                </Badge>
               ))}
             </div>
           )}
@@ -121,31 +157,27 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
   );
 }
 
+
+
 /* ========================== Feed ========================== */
-function Feed() {
-  const { posts, toggleLike, addPost, loading } = usePosts();
+function Feed({ userId }: { userId: string }) {
+  const { posts, toggleLike, addPost, deletePost, loading } = usePosts(userId); // fetch only your posts
   const sorted = useMemo(() => [...posts].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)), [posts]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <Loader2 className="animate-spin" />;
 
   return (
     <div className="space-y-4">
       <Composer onCreate={addPost} />
       <Separator />
-      <div className="space-y-4">
-        {sorted.map((p) => (
-          <PostCard key={p.id} post={p} onLike={toggleLike} />
-        ))}
-      </div>
+      {sorted.map((p) => (
+        <PostCard key={p.id} post={p} onLike={toggleLike} onDelete={deletePost} />
+      ))}
     </div>
   );
 }
+
+
 
 /* ========================== Main Page ========================== */
 export default function InstaLitePage() {
@@ -182,21 +214,17 @@ export default function InstaLitePage() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
+          {/* Feed: only your posts, deletable */}
           <TabsContent value="feed">
-            <Feed />
+            <Feed userId={user.id} />
           </TabsContent>
 
+          {/* Discover: everyone’s posts, no delete */}
           <TabsContent value="discover">
-            <Card>
-              <CardHeader>
-                <CardTitle>Coming soon</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Hashtag search, recommendations, infinite scroll…
-              </CardContent>
-            </Card>
+            <Discover />
           </TabsContent>
 
+          {/* Profile info */}
           <TabsContent value="profile">
             <Card>
               <CardHeader>
@@ -212,6 +240,32 @@ export default function InstaLitePage() {
     </div>
   );
 }
+
+
+/* ========================== Discover ========================== */
+function Discover() {
+  const { posts, toggleLike, fetchPosts, loading } = usePosts(); // fetch all posts
+  const sorted = useMemo(() => [...posts].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)), [posts]);
+
+  useEffect(() => {
+    fetchPosts(false); // fetch everyone's posts
+  }, []);
+
+  if (loading) return (
+    <div className="flex justify-center py-10">
+      <Loader2 className="h-5 w-5 animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {sorted.map((p) => (
+        <PostCard key={p.id} post={p} onLike={toggleLike} />
+      ))}
+    </div>
+  );
+}
+
 
 /* ========================== Map components ========================== */
 const MapPicker = dynamic(async () => {

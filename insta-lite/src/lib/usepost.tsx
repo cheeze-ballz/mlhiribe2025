@@ -1,22 +1,24 @@
 "use client";
-import { useState, useEffect } from "react";
-import type { Post } from "./types";
-import { createClient } from "@supabase/supabase-js";
 
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+import type { Post } from "./types";
+
+// Initialize Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export function usePosts() {
+export function usePosts(userId?: string) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch posts with user info
-  const fetchPosts = async () => {
+  // Fetch posts (all or only user's)
+  const fetchPosts = async (onlyMine = false) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("activities")
         .select(`
           *,
@@ -29,11 +31,15 @@ export function usePosts() {
         `)
         .order("created_at", { ascending: false });
 
+      if (onlyMine && userId) query = query.eq("creator_id", userId);
+
+      const { data, error } = await query;
       if (error) throw error;
 
       const mapped: Post[] = data.map((a: any) => ({
         id: a.id,
         user: {
+          id: a.creator_id,
           name: a.profiles?.name ?? "Unknown",
           handle: a.profiles?.handle ?? "@anon",
           avatar: a.profiles?.avatar,
@@ -43,7 +49,7 @@ export function usePosts() {
         likes: 0,
         comments: 0,
         createdAt: a.created_at,
-        location: undefined, // can extend later
+        location: undefined,
         placeName: "",
         tags: [],
         imageUrl: undefined,
@@ -61,17 +67,15 @@ export function usePosts() {
   // Add a new post
   const addPost = async (p: Post) => {
     try {
-      const { data, error } = await supabase.from("activities").insert({
+      const { error } = await supabase.from("activities").insert({
         title: p.caption,
-        creator_id: p.user.id, // must match profiles.id
+        creator_id: p.user.id,
         description: "",
         max_participants: 0,
       });
-
       if (error) throw error;
 
-      // Fetch latest posts again
-      fetchPosts();
+      fetchPosts(true); // refresh your feed
       return true;
     } catch (err) {
       console.error("Failed to add post:", err);
@@ -79,9 +83,21 @@ export function usePosts() {
     }
   };
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  // Delete a post
+  const deletePost = async (id: string) => {
+    try {
+      const { error } = await supabase.from("activities").delete().eq("id", id);
+      if (error) throw error;
 
-  return { posts, loading, fetchPosts, addPost };
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error("Failed to delete post:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts(!!userId); // fetch only user's posts initially if userId is passed
+  }, [userId]);
+
+  return { posts, loading, fetchPosts, addPost, deletePost, setPosts };
 }
