@@ -10,8 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Heart, MessageCircle, Send, Camera, PlusCircle, Loader2, MapPin } from "lucide-react";
+
+import { Heart, MessageCircle, Send, Camera, PlusCircle, Loader2, MapPin, LogOut } from "lucide-react";
+
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth";
+import { Login } from "@/components/login";
 
 /* ---- Free reverse-geocoder (OSM Nominatim; light/dev use) ---- */
 async function reverseGeocodeFree(lat: number, lng: number): Promise<string | undefined> {
@@ -157,13 +161,30 @@ function timeAgo(iso: string) {
 
 /* ============================= UI bits ============================= */
 function HeaderBar() {
+  const { user, logout } = useAuth();
+  
   return (
     <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/60 bg-background/80 border-b">
       <div className="mx-auto max-w-2xl px-4 py-3 flex items-center gap-3">
         <Camera className="h-6 w-6" />
         <span className="font-bold tracking-tight text-xl">InstaLite</span>
         <div className="ml-auto flex items-center gap-2">
+<<<<<<< HEAD
           <Badge variant="secondary" className="rounded-full">Leaflet</Badge>
+=======
+          {user && (
+            <>
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground hidden sm:inline">{user.handle}</span>
+              <Button variant="ghost" size="icon" onClick={logout} title="Logout">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+>>>>>>> rickbranch
         </div>
       </div>
     </div>
@@ -172,12 +193,14 @@ function HeaderBar() {
 
 /* =============================== Composer =============================== */
 function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
+  const { user } = useAuth();
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | undefined>(undefined);
   const [placeName, setPlaceName] = useState<string | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
 
+<<<<<<< HEAD
   useEffect(() => {
     let alive = true;
     const go = async () => {
@@ -191,6 +214,10 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
 
   const handleCreate = async () => {
     if (!caption && !loc && !(fileRef.current?.files?.[0])) return;
+=======
+  const handleFakeUpload = async () => {
+    if (!caption || !user) return;
+>>>>>>> rickbranch
     setBusy(true);
     await new Promise((r) => setTimeout(r, 600));
     const seed = Math.random().toString(36).slice(2);
@@ -199,8 +226,13 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
 
     onCreate({
       id: crypto.randomUUID(),
+<<<<<<< HEAD
       user: { name: "You", handle: "@you", avatar: "https://picsum.photos/seed/you/80" },
       imageUrl,
+=======
+      user: { name: user.name, handle: user.handle, avatar: user.avatar },
+      imageUrl: `https://picsum.photos/seed/${seed}/1200/900`,
+>>>>>>> rickbranch
       caption,
       liked: false,
       likes: 0,
@@ -221,6 +253,8 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
     setBusy(false);
   };
 
+  if (!user) return null;
+
   return (
     <Card className="border-muted/60">
       {/* Leaflet CSS once on this page */}
@@ -235,8 +269,8 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
 
       <CardHeader className="flex flex-row items-center gap-3 py-3">
         <Avatar className="h-9 w-9">
-          <AvatarImage src="https://picsum.photos/seed/you/80" alt="you" />
-          <AvatarFallback>YOU</AvatarFallback>
+          <AvatarImage src={user.avatar} alt={user.name} />
+          <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <CardTitle className="text-base font-medium">Create a post</CardTitle>
       </CardHeader>
@@ -371,6 +405,20 @@ function Feed() {
 }
 
 export default function InstaLite() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Leaflet CSS for this page */}
@@ -410,7 +458,7 @@ export default function InstaLite() {
           <TabsContent value="profile">
             <Card>
               <CardHeader>
-                <CardTitle>@you</CardTitle>
+                <CardTitle>{user.handle}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 Your posts, followers, following, edit profile…
