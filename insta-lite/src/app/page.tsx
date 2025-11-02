@@ -58,10 +58,11 @@ function HeaderBar() {
 }
 
 /* ========================== Post Card ========================== */
+/* ========================== Post Card ========================== */
 function PostCard({
   post,
   onLike,
-  onDelete, // optional
+  onDelete,
 }: {
   post: Post;
   onLike: (id: string) => void;
@@ -99,22 +100,30 @@ function PostCard({
         </CardHeader>
 
         <CardContent className="p-0">
+          {/* IMAGE FIRST */}
+          {hasPhoto && (
+            <img
+              src={post.imageUrl!}
+              alt={post.caption}
+              className="w-full aspect-video object-cover block"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = `https://picsum.photos/seed/${Date.now()}/1200/900`;
+              }}
+            />
+          )}
+
+          {/* MAP UNDER IMAGE (or solo if no image) */}
           {hasMap && (
-            <div className={hasPhoto ? "border-b" : ""}>
-              <MapPreview position={post.location!} height={180} zoom={15} />
+            <div className={`${hasPhoto ? "border-t" : ""}`}>
+              <div className={`${hasPhoto ? "rounded-b-none" : ""}`}>
+                <MapPreview position={post.location!} height={160} zoom={15} />
+              </div>
               {post.placeName && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   📍 {post.placeName}
                 </div>
               )}
             </div>
-          )}
-          {hasPhoto && (
-            <img
-              src={post.imageUrl!}
-              alt={post.caption}
-              className="w-full aspect-video object-cover"
-            />
           )}
         </CardContent>
 
@@ -156,6 +165,7 @@ function PostCard({
     </motion.div>
   );
 }
+
 
 
 
