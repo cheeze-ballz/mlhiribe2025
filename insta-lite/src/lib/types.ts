@@ -1,18 +1,18 @@
-export type Post = {
+type Post = {
     id: string;
-    user: { 
-      name: string; 
-      handle: string; 
-      avatar?: string; 
-    };
-    imageUrl?: string;
+    user: User;
     caption: string;
-    liked: boolean;
-    likes: number;
-    comments: number;
     createdAt: string;
-    tags?: string[];
+    imageUrl?: string;
     location?: { lat: number; lng: number };
     placeName?: string;
+    tags?: string[];
+    likes: number;
+    liked: boolean;
+    comments: number;
+  
+    // NEW FIELDS
+    maxParticipants?: number;   // optional max number
+    participants?: string[];    // array of user IDs who joined
   };
   

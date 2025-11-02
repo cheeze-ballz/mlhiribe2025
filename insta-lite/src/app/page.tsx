@@ -37,7 +37,7 @@ function HeaderBar() {
     <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/60 bg-background/80 border-b">
       <div className="mx-auto max-w-2xl px-4 py-3 flex items-center gap-3">
         <Camera className="h-6 w-6" />
-        <span className="font-bold tracking-tight text-xl">InstaLite</span>
+        <span className="font-bold tracking-tight text-xl">LinkUp</span>
         <div className="ml-auto flex items-center gap-2">
           {user && (
             <>
@@ -63,13 +63,20 @@ function PostCard({
   post,
   onLike,
   onDelete,
+  onJoin,
+  currentUserId,
 }: {
   post: Post;
   onLike: (id: string) => void;
   onDelete?: (id: string) => void;
+  onJoin?: (id: string) => void;
+  currentUserId?: string;
 }) {
   const hasPhoto = Boolean(post.imageUrl);
   const hasMap = Boolean(post.location);
+
+  const joined = post.participants?.includes(currentUserId || "");
+  const canJoin = post.maxParticipants && (!joined && (post.participants?.length || 0) < post.maxParticipants);
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -88,52 +95,25 @@ function PostCard({
           </div>
 
           {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(post.id)}
-              title="Delete Post"
-            >
+            <Button variant="ghost" size="icon" onClick={() => onDelete(post.id)} title="Delete Post">
               Delete
             </Button>
           )}
         </CardHeader>
 
         <CardContent className="p-0">
-          {/* IMAGE FIRST */}
-          {hasPhoto && (
-            <img
-              src={post.imageUrl!}
-              alt={post.caption}
-              className="w-full aspect-video object-cover block"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = `https://picsum.photos/seed/${Date.now()}/1200/900`;
-              }}
-            />
-          )}
-
-          {/* MAP UNDER IMAGE (or solo if no image) */}
+          {hasPhoto && <img src={post.imageUrl!} alt={post.caption} className="w-full aspect-video object-cover" />}
           {hasMap && (
             <div className={`${hasPhoto ? "border-t" : ""}`}>
-              <div className={`${hasPhoto ? "rounded-b-none" : ""}`}>
-                <MapPreview position={post.location!} height={160} zoom={15} />
-              </div>
-              {post.placeName && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
-                  📍 {post.placeName}
-                </div>
-              )}
+              <MapPreview position={post.location!} height={160} zoom={15} />
+              {post.placeName && <div className="px-3 py-2 text-sm text-muted-foreground">📍 {post.placeName}</div>}
             </div>
           )}
         </CardContent>
 
         <CardFooter className="flex flex-col items-stretch gap-3">
           <div className="flex items-center gap-3 pt-2">
-            <Button
-              size="icon"
-              variant={post.liked ? "default" : "secondary"}
-              onClick={() => onLike(post.id)}
-            >
+            <Button size="icon" variant={post.liked ? "default" : "secondary"} onClick={() => onLike(post.id)}>
               <Heart className={`h-5 w-5 ${post.liked ? "fill-current" : ""}`} />
             </Button>
 
@@ -151,12 +131,21 @@ function PostCard({
             {post.caption}
           </div>
 
+          {/* PARTICIPANTS */}
+          {post.maxParticipants && (
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span>{post.participants?.length || 0} / {post.maxParticipants} joined</span>
+              {canJoin && onJoin && (
+                <Button size="sm" variant="outline" onClick={() => onJoin(post.id)}>Join</Button>
+              )}
+              {joined && <Badge variant="secondary">Joined</Badge>}
+            </div>
+          )}
+
           {post.tags && post.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {post.tags.map((t) => (
-                <Badge key={t} variant="outline">
-                  {t}
-                </Badge>
+                <Badge key={t} variant="outline">{t}</Badge>
               ))}
             </div>
           )}
@@ -170,22 +159,30 @@ function PostCard({
 
 
 /* ========================== Feed ========================== */
-function Feed({ userId }: { userId: string }) {
-  const { posts, toggleLike, addPost, deletePost, loading } = usePosts(userId); // fetch only your posts
+function Feed({ userId, currentUserId }: { userId: string; currentUserId: string }) {
+  const { posts, toggleLike, addPost, deletePost, joinPost, loading } = usePosts(userId);
   const sorted = useMemo(() => [...posts].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)), [posts]);
-
-  if (loading) return <Loader2 className="animate-spin" />;
 
   return (
     <div className="space-y-4">
       <Composer onCreate={addPost} />
       <Separator />
       {sorted.map((p) => (
-        <PostCard key={p.id} post={p} onLike={toggleLike} onDelete={deletePost} />
+        <PostCard
+          key={p.id}
+          post={p}
+          currentUserId={currentUserId}
+          onLike={toggleLike}
+          onDelete={deletePost}
+          onJoin={joinPost ? (id) => joinPost(id, currentUserId) : undefined}
+        />
       ))}
     </div>
   );
 }
+
+
+
 
 
 
@@ -224,15 +221,14 @@ export default function InstaLitePage() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
-          {/* Feed: only your posts, deletable */}
           <TabsContent value="feed">
-            <Feed userId={user.id} />
-          </TabsContent>
+  <Feed userId={user.id} currentUserId={user.id} />
+</TabsContent>
 
-          {/* Discover: everyone’s posts, no delete */}
-          <TabsContent value="discover">
-            <Discover />
-          </TabsContent>
+<TabsContent value="discover">
+  <Discover currentUserId={user.id} />
+</TabsContent>
+
 
           {/* Profile info */}
           <TabsContent value="profile">
@@ -253,24 +249,24 @@ export default function InstaLitePage() {
 
 
 /* ========================== Discover ========================== */
-function Discover() {
-  const { posts, toggleLike, fetchPosts, loading } = usePosts(); // fetch all posts
+function Discover({ currentUserId }: { currentUserId: string }) {
+  const { posts, toggleLike, joinPost, fetchPosts, loading } = usePosts();
   const sorted = useMemo(() => [...posts].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)), [posts]);
 
   useEffect(() => {
-    fetchPosts(false); // fetch everyone's posts
+    fetchPosts(false);
   }, []);
-
-  if (loading) return (
-    <div className="flex justify-center py-10">
-      <Loader2 className="h-5 w-5 animate-spin" />
-    </div>
-  );
 
   return (
     <div className="space-y-4">
       {sorted.map((p) => (
-        <PostCard key={p.id} post={p} onLike={toggleLike} />
+        <PostCard
+          key={p.id}
+          post={p}
+          currentUserId={currentUserId}
+          onLike={toggleLike}
+          onJoin={joinPost ? (id) => joinPost(id, currentUserId) : undefined}
+        />
       ))}
     </div>
   );

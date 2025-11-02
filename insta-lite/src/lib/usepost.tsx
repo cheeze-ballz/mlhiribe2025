@@ -189,3 +189,17 @@ export function usePosts(userId?: string) {
 
   return { posts: sorted, loading, fetchPosts, addPost, deletePost, toggleLike, setPosts };
 }
+const joinPost = (id: string, userId: string) => {
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === id) {
+          const alreadyJoined = p.participants?.includes(userId);
+          if (!alreadyJoined && (p.maxParticipants || Infinity) > (p.participants?.length || 0)) {
+            return { ...p, participants: [...(p.participants || []), userId] };
+          }
+        }
+        return p;
+      })
+    );
+  };
+  
