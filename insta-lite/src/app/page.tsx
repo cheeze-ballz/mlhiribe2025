@@ -169,9 +169,7 @@ function HeaderBar() {
         <Camera className="h-6 w-6" />
         <span className="font-bold tracking-tight text-xl">InstaLite</span>
         <div className="ml-auto flex items-center gap-2">
-<<<<<<< HEAD
-          <Badge variant="secondary" className="rounded-full">Leaflet</Badge>
-=======
+
           {user && (
             <>
               <Avatar className="h-7 w-7">
@@ -184,7 +182,7 @@ function HeaderBar() {
               </Button>
             </>
           )}
->>>>>>> rickbranch
+
         </div>
       </div>
     </div>
@@ -200,7 +198,7 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
   const [placeName, setPlaceName] = useState<string | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
 
-<<<<<<< HEAD
+
   useEffect(() => {
     let alive = true;
     const go = async () => {
@@ -214,10 +212,7 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
 
   const handleCreate = async () => {
     if (!caption && !loc && !(fileRef.current?.files?.[0])) return;
-=======
-  const handleFakeUpload = async () => {
-    if (!caption || !user) return;
->>>>>>> rickbranch
+
     setBusy(true);
     await new Promise((r) => setTimeout(r, 600));
     const seed = Math.random().toString(36).slice(2);
@@ -226,13 +221,10 @@ function Composer({ onCreate }: { onCreate: (p: Post) => void }) {
 
     onCreate({
       id: crypto.randomUUID(),
-<<<<<<< HEAD
-      user: { name: "You", handle: "@you", avatar: "https://picsum.photos/seed/you/80" },
-      imageUrl,
-=======
+
       user: { name: user.name, handle: user.handle, avatar: user.avatar },
       imageUrl: `https://picsum.photos/seed/${seed}/1200/900`,
->>>>>>> rickbranch
+
       caption,
       liked: false,
       likes: 0,
